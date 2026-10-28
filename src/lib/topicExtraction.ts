@@ -67,17 +67,17 @@ export const extractionDepths: ExtractionDepthOption[] = [
   {
     id: 'low',
     label: { zh: '低', en: 'Low' },
-    description: { zh: '概念和基础问题，适合快速了解。', en: 'Core concepts and basic questions for a quick overview.' },
+    description: { zh: '定义、概念区分和熟悉例子，建立基本理解。', en: 'Definitions, distinctions, and familiar examples to build basic understanding.' },
   },
   {
     id: 'medium',
     label: { zh: '中', en: 'Medium' },
-    description: { zh: '兼顾原因、案例和现实应用。', en: 'Balance causes, cases, and practical application.' },
+    description: { zh: '因果链条、利弊权衡、现实案例和可执行判断。', en: 'Causal chains, tradeoffs, real cases, and actionable judgment.' },
   },
   {
     id: 'high',
     label: { zh: '高', en: 'High' },
-    description: { zh: '深入机制、证据、争议和边界条件。', en: 'Go deep into mechanisms, evidence, debates, and boundaries.' },
+    description: { zh: '机制、证据质量、反方论证、边界条件和二阶影响。', en: 'Mechanisms, evidence quality, counterarguments, boundary conditions, and second-order effects.' },
   },
 ]
 
@@ -110,17 +110,47 @@ export const buildAgentPrompt = ({
 拆解领域：${domainLabel}
 拆解深度：${depthLabel}
 深度说明：${depthInstruction}
-请至少输出 ${count} 个可以用于口述训练的小主题。
+请最终输出 ${count} 个可以用于口述训练的小主题。
 
-拆解要求：
-1. 不要只给关键词，每个主题都必须是完整、可回答的问题。
-2. 每个主题包含：中文题目、English prompt、一句表达抓手。
-3. 标注适合“即兴表达 / 研究陈述 / 结构化回答”中的哪一种。
-4. 优先覆盖核心概念、背景原因、关键证据、现实案例、主要争议、反方观点、影响、解决方案和未来趋势。
-5. 去掉重复主题、过宽泛标题和无法独立回答的问题。
-6. 每个主题尽量只聚焦一个判断或一个角度。
-7. 深度必须符合所选等级：低=解释概念和基本判断；中=加入原因、案例与应用；高=追问机制、证据、争议、边界条件和跨领域影响。
-8. 最后严格输出为 Markdown 表格，列为：
+在生成最终表格前，请先在内部完成以下编辑流程：
+A. 从材料或大主题中提取至少 ${count * 2} 个候选角度；
+B. 逐个检查候选是否具体、完整、可独立回答；
+C. 删除重复、空泛、同义改写和无法在 1–3 分钟内展开的问题；
+D. 只保留最有张力、最有信息密度、最适合真实开口训练的 ${count} 个。
+
+每个最终题目必须同时满足：
+1. 完整、可独立回答，不能是关键词、半句话或只有概念的标题。
+2. 包含具体场景、明确对象，以及一个需要作出判断、解释、比较、选择或建议的动作。
+3. 回答者至少需要三点信息或一条推理链才能完成，不能一句话结束。
+4. 与同组其他题目在焦点上明显不同，不能只是替换关键词。
+5. “表达抓手”不能全部套用同一个模板，必须写出本题真正的难点或回答路径。
+6. 至少覆盖两个适合模式，不能全部标成研究陈述。
+7. “适合模式”列每行只能填写：即兴表达、研究陈述、结构化回答之一，不能填写机制、证据、决策等内容类别。
+8. 中文题目控制在约 20–55 个汉字，英文 prompt 控制在 1–2 句；保留具体场景和张力，但不要写成小作文。
+
+禁止输出以下空泛句式：
+- “谈谈……”
+- “如何看待……”（除非同时说明具体对象、立场冲突和限制条件）
+- “……的重要性”
+- “……的影响”
+- “为什么……很重要”
+- 空泛的“未来趋势”“发展前景”或“意义分析”
+如果候选只是换词复刻这些句式，请直接重写。
+
+深度必须真正体现在题目中：
+- 低：用定义、概念区分和熟悉例子建立基本理解。
+- 中：要求因果链条、利弊权衡、现实案例或可执行判断。
+- 高：至少一半题目涉及机制、证据质量、反方论证、边界条件、反例或二阶影响。
+
+如果是 PDF，优先覆盖不同章节和核心论点，题目中应隐含原文里的概念、论证或案例。
+
+质量门禁：
+- 能用一句话回答 → 淘汰。
+- 两个题目可以共用同一套三点回答 → 合并。
+- 没有具体判断或行动 → 重写。
+- 只换名词、不换思考角度 → 删除。
+
+最后严格输出为 Markdown 表格，列为：
 | 中文题目 | English prompt | 表达抓手 | 适合模式 |
 不要添加表格之外的解释。`
   }
@@ -135,17 +165,46 @@ export const buildAgentPrompt = ({
 Domain: ${domainLabel}
 Depth: ${depthLabel}
 Depth guidance: ${depthInstruction}
-Return at least ${count} subtopics that can be used for spoken practice.
+Return exactly ${count} subtopics for spoken practice.
 
-Requirements:
-1. Do not return bare keywords. Every topic must be a complete, answerable prompt.
-2. For each topic include: Chinese title, English prompt, and one speaking cue.
-3. Label whether it suits Impromptu, Research brief, or Structured answer.
-4. Cover core concepts, background, evidence, real cases, main debates, counterarguments, impact, solutions, and future trends where relevant.
-5. Remove duplicates, overly broad titles, and prompts that cannot stand alone.
-6. Keep each topic focused on one judgment or one angle.
-7. Match the selected depth: Low = concepts and basic judgments; Medium = causes, cases, and application; High = mechanisms, evidence, debates, boundaries, and cross-domain implications.
-8. Output only a Markdown table with these columns:
+Before producing the final table, do the following internally:
+A. Extract at least ${count * 2} candidate angles from the source or broad topic.
+B. Check each candidate for specificity, completeness, and standalone answerability.
+C. Remove duplicates, vague rewrites, and topics that cannot sustain 1–3 minutes.
+D. Keep only the strongest ${count} topics by tension, information density, and speaking value.
+
+Every final topic must:
+1. Be a complete, standalone prompt, not a keyword, fragment, or bare concept.
+2. Include a concrete scenario, a clear object, and an action such as judging, explaining, comparing, choosing, or recommending.
+3. Require at least three pieces of information or one reasoning chain to answer well.
+4. Have a clearly different focus from every other topic in the set.
+5. Use a speaking cue that identifies the real difficulty or response path rather than repeating a generic template.
+6. Cover at least two suitable practice modes rather than labeling everything Research brief.
+7. The mode column must contain exactly one of: Impromptu, Research brief, or Structured answer. Never put mechanism, evidence, or decision categories there.
+8. Keep Chinese prompts to roughly 20–55 characters and English prompts to 1–2 sentences. Preserve specificity and tension without writing a mini-essay.
+
+Do not output:
+- “Talk about…”
+- “What do you think about…” unless it adds a concrete tension and constraint
+- “…is important”
+- “The impact of…”
+- “Why … matters”
+- Generic “future trends,” “prospects,” or “significance” prompts
+
+Match the selected depth:
+- Low: definitions, distinctions, and familiar examples.
+- Medium: causal chains, tradeoffs, real cases, and actionable judgment.
+- High: at least half of the topics should involve mechanisms, evidence quality, counterarguments, boundary conditions, counterexamples, or second-order effects.
+
+For a PDF, cover different chapters and central arguments, and make the source concepts, reasoning, or cases visible in the prompts.
+
+Quality gate:
+- If it can be answered in one sentence, reject it.
+- If two topics share the same three-point answer, merge them.
+- If there is no specific judgment or action, rewrite it.
+- If only nouns change but the thinking angle stays the same, delete it.
+
+Output only a Markdown table with these columns:
 | 中文题目 | English prompt | 表达抓手 | 适合模式 |
 Do not add any explanation outside the table.`
 }

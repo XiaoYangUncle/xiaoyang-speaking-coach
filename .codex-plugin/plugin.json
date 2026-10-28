@@ -1,6 +1,6 @@
 {
   "name": "xiaoyang-speaking-coach",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Install and operate 言之有物, a local-first bilingual speaking practice studio with topic extraction, timed recording, Agent analysis, progress history, and Obsidian sync.",
   "author": {
     "name": "XiaoYangUncle",

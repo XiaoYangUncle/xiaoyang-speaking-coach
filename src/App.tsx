@@ -35,6 +35,7 @@ interface Settings {
   speechSeconds: number
   researchSeconds: number
   outlineSeconds: number
+  drawSeconds: number
 }
 
 interface CustomTopicDraft {
@@ -56,6 +57,7 @@ const defaultSettings: Settings = {
   speechSeconds: 120,
   researchSeconds: 180,
   outlineSeconds: 90,
+  drawSeconds: 2.8,
 }
 
 const modeMeta = {
@@ -151,6 +153,8 @@ const copy = {
     recent: '最近练过',
     noRecent: '还没有练习记录。',
     duration: '表达时长',
+    drawDuration: '抽卡轮动时长',
+    drawDurationHint: '控制从点击“换一题”到题目落定的速度，可调范围 1.5–5 秒。',
     modeHint: '当前时长可在设置中调整。',
     settingTitle: '练习设置',
     settingSubtitle: '时间只在本地保存，适合个人节奏。',
@@ -205,6 +209,8 @@ const copy = {
     recent: 'Recently practiced',
     noRecent: 'No practice history yet.',
     duration: 'Speech length',
+    drawDuration: 'Prompt draw duration',
+    drawDurationHint: 'Controls the interval from clicking “Draw another” to the prompt landing. Range: 1.5–5 seconds.',
     modeHint: 'Change the duration in settings.',
     settingTitle: 'Practice settings',
     settingSubtitle: 'Preferences stay on this device and follow your own rhythm.',
@@ -287,6 +293,7 @@ export default function App() {
   const landedTimeoutRef = useRef<number | null>(null)
 
   const t = copy[lang]
+  const currentSettings = { ...defaultSettings, ...settings }
   const customGroupCategories = useMemo<TopicCategory[]>(() => customGroups.map((group) => ({
     id: group.id,
     name: group.name,
@@ -354,6 +361,12 @@ export default function App() {
     if (soundOn) playTopicShuffle()
 
     const totalSteps = 24
+    const totalDurationMs = currentSettings.drawSeconds * 1000
+    const stepWeights = Array.from({ length: totalSteps - 1 }, (_, index) => {
+      const step = index + 1
+      return 70 + Math.pow(step / totalSteps, 2) * 300
+    })
+    const weightTotal = stepWeights.reduce((sum, weight) => sum + weight, 0)
     let step = 0
 
     const runStep = () => {
@@ -372,7 +385,7 @@ export default function App() {
         return
       }
 
-      const delay = 70 + Math.pow(step / totalSteps, 2) * 300
+      const delay = totalDurationMs * (stepWeights[step - 1] ?? 0) / weightTotal
       drawTimeoutRef.current = window.setTimeout(runStep, delay)
     }
 
@@ -864,6 +877,19 @@ export default function App() {
 
             <div className="settings-group">
               <label>
+                <span>{t.drawDuration}</span>
+                <b>{formatDuration(currentSettings.drawSeconds, lang)}</b>
+                <input
+                  type="range"
+                  min={1.5}
+                  max={5}
+                  step={0.1}
+                  value={currentSettings.drawSeconds}
+                  onChange={(event) => setSettings((current) => ({ ...current, drawSeconds: Number(event.target.value) }))}
+                />
+                <small>{t.drawDurationHint}</small>
+              </label>
+              <label>
                 <span>{t.speechTime}</span>
                 <b>{formatDuration(settings.speechSeconds, lang)}</b>
                 <input
@@ -871,7 +897,7 @@ export default function App() {
                   min={30}
                   max={600}
                   step={30}
-                  value={settings.speechSeconds}
+                  value={currentSettings.speechSeconds}
                   onChange={(event) => setSettings((current) => ({ ...current, speechSeconds: Number(event.target.value) }))}
                 />
               </label>
@@ -883,7 +909,7 @@ export default function App() {
                   min={60}
                   max={1800}
                   step={60}
-                  value={settings.researchSeconds}
+                  value={currentSettings.researchSeconds}
                   onChange={(event) => setSettings((current) => ({ ...current, researchSeconds: Number(event.target.value) }))}
                 />
               </label>
@@ -895,7 +921,7 @@ export default function App() {
                   min={30}
                   max={600}
                   step={30}
-                  value={settings.outlineSeconds}
+                  value={currentSettings.outlineSeconds}
                   onChange={(event) => setSettings((current) => ({ ...current, outlineSeconds: Number(event.target.value) }))}
                 />
               </label>
